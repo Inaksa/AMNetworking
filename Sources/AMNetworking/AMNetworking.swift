@@ -1,3 +1,4 @@
+// NetworkClient by Alex Maggio
 import Foundation
 import AMCache
 
