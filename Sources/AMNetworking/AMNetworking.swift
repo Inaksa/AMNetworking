@@ -1,4 +1,5 @@
 import Foundation
+import AMCache
 
 public enum NetworkError: Error {
     case InvalidURL
@@ -39,7 +40,8 @@ public class AMNetworkingManager {
         return URLSession(configuration: config)
     }()
     
-//    private var cache: AMCache
+    private var cache: AMCache = AMCache()
+    
     public func cancelPendingRequests() {
         if downloadTask?.state == .running || downloadTask?.state == .suspended {
             downloadTask?.cancel()
@@ -47,6 +49,12 @@ public class AMNetworkingManager {
     }
     
     public func performRequest<T: Codable>(_ req: RequestBuilder<T>, success: @escaping (T) -> Void, failure: @escaping (Error) -> Void) {
+        if let storedData = cache.getCachedValue(for: req.url),
+           let cachedValue = try? JSONDecoder().decode(T.self, from: storedData) {
+            success(cachedValue)
+            return
+        }
+        
         guard let url = URL(string: req.url) else {
             failure(NetworkError.InvalidURL)
             return
@@ -68,6 +76,9 @@ public class AMNetworkingManager {
             }
             
             do {
+                // Save in cache
+                self.cache.cacheValue(key: req.url, value: data)
+                
                 let retValue = try JSONDecoder().decode(T.self, from: data)
                 success(retValue)
             } catch {
